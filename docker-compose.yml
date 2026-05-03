@@ -7,54 +7,71 @@ services:
     image: apache/hadoop:3.4.3
     container_name: netflix-namenode
     hostname: namenode
-    command: ["hdfs", "namenode"]
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      [
+        "bash",
+        "-lc",
+        "mkdir -p /hadoop/dfs/name /hadoop/tmp && chmod -R 755 /hadoop && if [ ! -f /hadoop/dfs/name/current/VERSION ]; then hdfs namenode -format -force -nonInteractive; fi && hdfs namenode"
+      ]
     env_file:
       - ./hadoop.env
     environment:
-      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+      ENSURE_NAMENODE_DIR: "/hadoop/dfs/name"
     ports:
-      - "9870:9870"   # HDFS NameNode Web UI
-      - "8020:8020"   # HDFS RPC
+      - "9870:9870"
+      - "8020:8020"
     volumes:
-      - namenode_data:/tmp/hadoop-root/dfs/name
+      - namenode_data:/hadoop/dfs/name
     networks:
       - netflix_bigdata_net
     mem_limit: 768m
     cpus: "0.50"
-    restart: unless-stopped
+    
 
   datanode:
     image: apache/hadoop:3.4.3
     container_name: netflix-datanode
     hostname: datanode
-    command: ["hdfs", "datanode"]
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      [
+        "bash",
+        "-lc",
+        "mkdir -p /hadoop/dfs/data && chmod -R 755 /hadoop/dfs/data && hdfs datanode"
+      ]
     env_file:
       - ./hadoop.env
     depends_on:
       - namenode
     ports:
-      - "9864:9864"   # HDFS DataNode Web UI
+      - "9864:9864"
     volumes:
-      - datanode_data:/tmp/hadoop-root/dfs/data
+      - datanode_data:/hadoop/dfs/data
     networks:
       - netflix_bigdata_net
     mem_limit: 1536m
     cpus: "1.00"
-    restart: unless-stopped
+    
 
   spark-master:
-    image: bitnami/spark:3.5.8
+    image: spark:3.5.8-python3
     container_name: netflix-spark-master
     hostname: spark-master
-    environment:
-      SPARK_MODE: master
-      SPARK_MASTER_HOST: spark-master
-      SPARK_MASTER_PORT_NUMBER: 7077
-      SPARK_MASTER_WEBUI_PORT: 8080
-      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-      SPARK_RPC_ENCRYPTION_ENABLED: "no"
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
-      SPARK_SSL_ENABLED: "no"
+    restart: "unless-stopped"
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "spark-master",
+        "--port",
+        "7077",
+        "--webui-port",
+        "8080"
+      ]
     depends_on:
       - namenode
       - datanode
@@ -62,41 +79,48 @@ services:
       - "8080:8080"   # Spark Master Web UI
       - "7077:7077"   # Spark Master RPC
     volumes:
-      - spark_master_work:/opt/bitnami/spark/work
+      - spark_master_work:/opt/spark/work
     networks:
       - netflix_bigdata_net
-    mem_limit: 768m
-    cpus: "0.50"
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 768M
 
   spark-worker:
-    image: bitnami/spark:3.5.8
+    image: spark:3.5.8-python3
     container_name: netflix-spark-worker
     hostname: spark-worker
-    environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 3584m
-      SPARK_WORKER_WEBUI_PORT: 8081
-      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-      SPARK_RPC_ENCRYPTION_ENABLED: "no"
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
-      SPARK_SSL_ENABLED: "no"
-      PYSPARK_PYTHON: python3
+    restart: unless-stopped
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://spark-master:7077",
+        "--webui-port",
+        "8081",
+        "--cores",
+        "2",
+        "--memory",
+        "4g"
+      ]
     depends_on:
       - spark-master
     ports:
       - "8081:8081"   # Spark Worker Web UI
     volumes:
-      - spark_worker_work:/opt/bitnami/spark/work
+      - spark_worker_work:/opt/spark/work
       - ./data:/workspace/data
       - ./outputs:/workspace/outputs
     networks:
       - netflix_bigdata_net
-    mem_limit: 4g
-    cpus: "2.50"
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.50"
+          memory: 4G
+    
 
   notebook:
     build:
@@ -104,6 +128,7 @@ services:
       dockerfile: Dockerfile.notebook
     container_name: netflix-notebook-tf-gpu
     hostname: notebook
+    restart: unless-stopped
     environment:
       JUPYTER_ENABLE_LAB: "yes"
       SPARK_MASTER_URL: spark://spark-master:7077
@@ -138,7 +163,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    restart: unless-stopped
 
 networks:
   netflix_bigdata_net:
