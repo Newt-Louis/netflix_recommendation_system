@@ -1,1 +1,2 @@
-ml-25m/
+data/raw/ml-25m/*
+!data/raw/ml-25m/.gitkeep
