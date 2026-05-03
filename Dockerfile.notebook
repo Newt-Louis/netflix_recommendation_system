@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.21.0-gpu-jupyter
+FROM tensorflow/tensorflow:2.21.0-jupyter
 
 USER root
 
@@ -6,14 +6,21 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        openjdk-17-jre-headless \
+        openjdk-17-jdk \
         curl \
+        wget \
+        git \
         procps \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
+ENV TF_CPP_MIN_LOG_LEVEL=1
+ENV TF_ENABLE_ONEDNN_OPTS=1
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install --no-cache-dir --ignore-installed blinker==1.9.0 \

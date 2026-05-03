@@ -1,6 +1,6 @@
 # Netflix-like Recommendation Big Data Lab
-# 5 containers: Hadoop NameNode, Hadoop DataNode, Spark Master, Spark Worker, Notebook + TensorFlow GPU
-# Resource budget: 6 CPU cores, 10GB RAM, 40GB disk, 1 NVIDIA GPU for TensorFlow container.
+# 5 containers: Hadoop NameNode, Hadoop DataNode, Spark Master, Spark Worker, Notebook + TensorFlow CPU
+# Resource budget: 6 CPU cores, 10GB RAM, 40GB disk.
 
 services:
   namenode:
@@ -61,17 +61,17 @@ services:
     container_name: netflix-spark-master
     hostname: spark-master
     restart: "unless-stopped"
-    command:
-      [
-        "/opt/spark/bin/spark-class",
-        "org.apache.spark.deploy.master.Master",
-        "--host",
-        "spark-master",
-        "--port",
-        "7077",
-        "--webui-port",
-        "8080"
-      ]
+    user: "0:0"
+    command: >
+      bash -lc "
+      mkdir -p /opt/spark/work &&
+      chmod -R 777 /opt/spark/work &&
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.master.Master
+      --host spark-master
+      --port 7077
+      --webui-port 8080
+      "
     depends_on:
       - namenode
       - datanode
@@ -93,18 +93,19 @@ services:
     container_name: netflix-spark-worker
     hostname: spark-worker
     restart: unless-stopped
-    command:
-      [
-        "/opt/spark/bin/spark-class",
-        "org.apache.spark.deploy.worker.Worker",
-        "spark://spark-master:7077",
-        "--webui-port",
-        "8081",
-        "--cores",
-        "2",
-        "--memory",
-        "4g"
-      ]
+    user: "0:0"
+    command: >
+      bash -lc "
+      mkdir -p /opt/spark/work &&
+      chmod -R 777 /opt/spark/work &&
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+      --webui-port 8081
+      --cores 2
+      --memory 3g
+      --work-dir /opt/spark/work
+      "
     depends_on:
       - spark-master
     ports:
@@ -126,7 +127,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.notebook
-    container_name: netflix-notebook-tf-gpu
+    container_name: netflix-notebook-tf-cpu
     hostname: notebook
     restart: unless-stopped
     environment:
@@ -135,8 +136,8 @@ services:
       HDFS_URI: hdfs://namenode:8020
       PYSPARK_PYTHON: python3
       PYSPARK_DRIVER_PYTHON: python3
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      TF_CPP_MIN_LOG_LEVEL: "1"
+      TF_ENABLE_ONEDNN_OPTS: "1"
     depends_on:
       - namenode
       - datanode
@@ -156,13 +157,6 @@ services:
       - netflix_bigdata_net
     mem_limit: 3g
     cpus: "1.50"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
 networks:
   netflix_bigdata_net:
