@@ -1,2 +1,20 @@
+# Data
 data/raw/ml-25m/*
 !data/raw/ml-25m/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Outputs and models
+outputs/
+models/
+
+# Docker/Hadoop local noise
+*.log
