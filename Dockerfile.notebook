@@ -1,0 +1,36 @@
+FROM tensorflow/tensorflow:2.21.0-gpu-jupyter
+
+USER root
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        openjdk-17-jre-headless \
+        curl \
+        procps \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip install --no-cache-dir \
+        pyspark==3.5.8 \
+        findspark \
+        pandas \
+        numpy \
+        scipy \
+        matplotlib \
+        scikit-learn \
+        pyarrow \
+        tqdm \
+        ipywidgets \
+        streamlit
+
+WORKDIR /workspace
+
+EXPOSE 8888 4040 8501
+
+CMD ["bash", "-lc", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=/workspace"]

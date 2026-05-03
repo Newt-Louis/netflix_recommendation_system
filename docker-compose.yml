@@ -1,0 +1,151 @@
+# Netflix-like Recommendation Big Data Lab
+# 5 containers: Hadoop NameNode, Hadoop DataNode, Spark Master, Spark Worker, Notebook + TensorFlow GPU
+# Resource budget: 6 CPU cores, 10GB RAM, 40GB disk, 1 NVIDIA GPU for TensorFlow container.
+
+services:
+  namenode:
+    image: apache/hadoop:3.4.3
+    container_name: netflix-namenode
+    hostname: namenode
+    command: ["hdfs", "namenode"]
+    env_file:
+      - ./hadoop.env
+    environment:
+      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+    ports:
+      - "9870:9870"   # HDFS NameNode Web UI
+      - "8020:8020"   # HDFS RPC
+    volumes:
+      - namenode_data:/tmp/hadoop-root/dfs/name
+    networks:
+      - netflix_bigdata_net
+    mem_limit: 768m
+    cpus: "0.50"
+    restart: unless-stopped
+
+  datanode:
+    image: apache/hadoop:3.4.3
+    container_name: netflix-datanode
+    hostname: datanode
+    command: ["hdfs", "datanode"]
+    env_file:
+      - ./hadoop.env
+    depends_on:
+      - namenode
+    ports:
+      - "9864:9864"   # HDFS DataNode Web UI
+    volumes:
+      - datanode_data:/tmp/hadoop-root/dfs/data
+    networks:
+      - netflix_bigdata_net
+    mem_limit: 1536m
+    cpus: "1.00"
+    restart: unless-stopped
+
+  spark-master:
+    image: bitnami/spark:3.5.8
+    container_name: netflix-spark-master
+    hostname: spark-master
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT_NUMBER: 7077
+      SPARK_MASTER_WEBUI_PORT: 8080
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    depends_on:
+      - namenode
+      - datanode
+    ports:
+      - "8080:8080"   # Spark Master Web UI
+      - "7077:7077"   # Spark Master RPC
+    volumes:
+      - spark_master_work:/opt/bitnami/spark/work
+    networks:
+      - netflix_bigdata_net
+    mem_limit: 768m
+    cpus: "0.50"
+    restart: unless-stopped
+
+  spark-worker:
+    image: bitnami/spark:3.5.8
+    container_name: netflix-spark-worker
+    hostname: spark-worker
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 3584m
+      SPARK_WORKER_WEBUI_PORT: 8081
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      PYSPARK_PYTHON: python3
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"   # Spark Worker Web UI
+    volumes:
+      - spark_worker_work:/opt/bitnami/spark/work
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+    networks:
+      - netflix_bigdata_net
+    mem_limit: 4g
+    cpus: "2.50"
+    restart: unless-stopped
+
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile.notebook
+    container_name: netflix-notebook-tf-gpu
+    hostname: notebook
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      SPARK_MASTER_URL: spark://spark-master:7077
+      HDFS_URI: hdfs://namenode:8020
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    depends_on:
+      - namenode
+      - datanode
+      - spark-master
+      - spark-worker
+    ports:
+      - "8888:8888"   # JupyterLab
+      - "4040:4040"   # Spark Application UI
+      - "8501:8501"   # Optional Streamlit demo if used later
+    volumes:
+      - ./data:/workspace/data
+      - ./notebooks:/workspace/notebooks
+      - ./src:/workspace/src
+      - ./outputs:/workspace/outputs
+      - ./models:/workspace/models
+    networks:
+      - netflix_bigdata_net
+    mem_limit: 3g
+    cpus: "1.50"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+networks:
+  netflix_bigdata_net:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  datanode_data:
+  spark_master_work:
+  spark_worker_work:
