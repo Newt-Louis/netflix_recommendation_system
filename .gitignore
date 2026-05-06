@@ -5,6 +5,7 @@ data/raw/ml-25m/*
 # Jupyter
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
+**/.Trash*/
 
 # Python
 __pycache__/
