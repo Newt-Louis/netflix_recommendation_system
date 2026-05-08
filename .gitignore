@@ -14,8 +14,10 @@ __pycache__/
 venv/
 
 # Outputs and models
-outputs/
-models/
+outputs/*
+models/*
+!models/.gitkeep
+!outputs/.gitkeep
 
 # Docker/Hadoop local noise
 *.log
