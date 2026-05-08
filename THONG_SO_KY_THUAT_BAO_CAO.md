@@ -9,7 +9,6 @@
 | Tổng CPU cấp cho môi trường giả lập | 6 CPU cores |
 | Tổng RAM cấp cho môi trường giả lập | 10GB |
 | Tổng dung lượng đĩa cấp cho Docker/dataset/outputs | 40GB |
-| GPU | 1 NVIDIA GPU, cấp cho container Notebook/TensorFlow |
 | Dataset | MovieLens 25M |
 | Số container | 5 container |
 | Database ngoài | Không sử dụng |
@@ -35,8 +34,8 @@
 | datanode | apache/hadoop:3.4.3 | 1.00 core | 1536MB | Không | datanode_data | 9864 |
 | spark-master | bitnami/spark:3.5.8 | 0.50 core | 768MB | Không | spark_master_work | 8080, 7077 |
 | spark-worker | bitnami/spark:3.5.8 | 2.50 cores | 4GB | Không | spark_worker_work, ./data, ./outputs | 8081 |
-| notebook-tensorflow | tensorflow/tensorflow:2.21.0-gpu-jupyter + PySpark 3.5.8 | 1.50 cores | 3GB | 1 GPU | ./data, ./notebooks, ./src, ./outputs, ./models | 8888, 4040, 8501 |
-| Tổng | 5 containers | 6.00 cores | 10GB | 1 GPU | Docker named volumes + bind mounts | - |
+| notebook-tensorflow | tensorflow/tensorflow:2.21.0-jupyter + PySpark 3.5.8 | 1.50 cores | 3GB | ./data, ./notebooks, ./src, ./outputs, ./models | 8888, 4040, 8501 |
+| Tổng | 5 containers | 6.00 cores | 10GB | Docker named volumes + bind mounts | - |
 
 ## Vai trò từng container
 
