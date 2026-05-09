@@ -7,7 +7,7 @@ services:
     image: apache/hadoop:3.4.3
     container_name: netflix-namenode
     hostname: namenode
-    restart: unless-stopped
+    restart: "no"
     user: "0:0"
     command:
       [
@@ -34,7 +34,7 @@ services:
     image: apache/hadoop:3.4.3
     container_name: netflix-datanode
     hostname: datanode
-    restart: unless-stopped
+    restart: "no"
     user: "0:0"
     command:
       [
@@ -60,7 +60,7 @@ services:
     image: spark:3.5.8-python3
     container_name: netflix-spark-master
     hostname: spark-master
-    restart: "unless-stopped"
+    restart: "no"
     user: "0:0"
     command: >
       bash -lc "
@@ -92,7 +92,7 @@ services:
     image: spark:3.5.8-python3
     container_name: netflix-spark-worker
     hostname: spark-worker
-    restart: unless-stopped
+    restart: "no"
     user: "0:0"
     environment:
       PYSPARK_PYTHON: python3
@@ -132,7 +132,7 @@ services:
       dockerfile: Dockerfile.notebook
     container_name: netflix-notebook-tf-cpu
     hostname: notebook
-    restart: unless-stopped
+    restart: "no"
     environment:
       JUPYTER_ENABLE_LAB: "yes"
       SPARK_MASTER_URL: spark://spark-master:7077
